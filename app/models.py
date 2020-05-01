@@ -90,9 +90,10 @@ class Post(db.Model):
     body = db.Column(db.String(140))
     timestamp = db.Column(db.DateTime, index=True, default=dt.datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), index=True)
+    language = db.Column(db.String(5))
 
     def __repr__(self):
-        return f"<Post id={self.id} body={self.body}>"
+        return f"<Post id={self.id} body={self.body} language={self.language}>"
 
 
 @login_manager.user_loader
