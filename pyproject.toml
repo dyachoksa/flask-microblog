@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "mysite"
+version = "1.0.0"
+description = "PErsonal Django-based website and blog"
+authors = ["Sergey Dyachok <sergey@sdyachok.com.ua>"]
+license = "MIT"
+
+[tool.black]
+line-length = 88
+target-version = ['py37']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.eggs
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | build
+  | dist
+  | docs
+)/
+'''
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88
