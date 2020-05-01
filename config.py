@@ -22,3 +22,5 @@ class Config:
     ADMINS = ["admin@example.com"]
 
     POSTS_PER_PAGE = 25
+
+    LANGUAGES = ["en", "ru"]
