@@ -2,7 +2,7 @@ import os
 import logging
 import logging.handlers
 
-from flask import Flask, request
+from flask import Flask, request, current_app
 from flask_babel import Babel, lazy_gettext as _l
 from flask_bootstrap import Bootstrap
 from flask_login import LoginManager
@@ -13,69 +13,92 @@ from flask_sqlalchemy import SQLAlchemy
 
 from config import Config
 
-app = Flask(__name__)
-app.config.from_object(Config)
+db = SQLAlchemy()
+migrate = Migrate()
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
-login_manager = LoginManager(app)
-login_manager.login_view = "login"
+login_manager = LoginManager()
+login_manager.login_view = "auth.login"
 login_manager.login_message = _l("Please log in to access this page.")
 
-mail = Mail(app)
+mail = Mail()
 
-bootstrap = Bootstrap(app)
+bootstrap = Bootstrap()
 
-moment = Moment(app)
+moment = Moment()
 
-babel = Babel(app)
+babel = Babel()
 
 
-from app import errors, models, routes  # noqa: 401, 402
+def create_app(config_class=Config):
+    app = Flask(__name__)
+    app.config.from_object(config_class)
+
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
+    mail.init_app(app)
+    bootstrap.init_app(app)
+    moment.init_app(app)
+    babel.init_app(app)
+
+    from app.errors import bt as errors_bp  # noqa: 402
+
+    app.register_blueprint(errors_bp)
+
+    from app.auth import bp as auth_bp  # noqa: 402
+
+    app.register_blueprint(auth_bp, url_prefix="/auth")
+
+    from app.main import bp as main_bp  # noqa: 402
+
+    app.register_blueprint(main_bp)
+
+    if not app.debug and not app.testing:
+        if app.config["MAIL_SERVER"]:
+            auth = None
+
+            if app.config["MAIL_USERNAME"] or app.config["MAIL_PASSWORD"]:
+                auth = (app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
+
+            secure = None
+            if app.config["MAIL_USE_TLS"]:
+                secure = ()
+
+            mail_handler = logging.handlers.SMTPHandler(
+                mailhost=(app.config["MAIL_SERVER"], app.config["MAIL_PORT"]),
+                fromaddr="no-reply@" + app.config["APP_DOMAIN"],
+                toaddrs=app.config["ADMINS"],
+                subject="Microblog Failure",
+                credentials=auth,
+                secure=secure,
+            )
+            mail_handler.setLevel(logging.ERROR)
+
+            app.logger.addHandler(mail_handler)
+
+        if not os.path.exists("logs"):
+            os.mkdir("logs")
+
+        file_handler = logging.handlers.RotatingFileHandler(
+            "logs/microblog.log", maxBytes=102400, backupCount=3
+        )
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
+            )
+        )
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+
+        app.logger.setLevel(logging.INFO)
+        app.logger.info("Microblog startup")
+
+    return app
 
 
 @babel.localeselector
 def get_locale():
-    return request.accept_languages.best_match(app.config["LANGUAGES"])
+    return request.accept_languages.best_match(current_app.config["LANGUAGES"])
 
 
-if not app.debug:
-    if app.config["MAIL_SERVER"]:
-        auth = None
-
-        if app.config["MAIL_USERNAME"] or app.config["MAIL_PASSWORD"]:
-            auth = (app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
-
-        secure = None
-        if app.config["MAIL_USE_TLS"]:
-            secure = ()
-
-        mail_handler = logging.handlers.SMTPHandler(
-            mailhost=(app.config["MAIL_SERVER"], app.config["MAIL_PORT"]),
-            fromaddr="no-reply@" + app.config["APP_DOMAIN"],
-            toaddrs=app.config["ADMINS"],
-            subject="Microblog Failure",
-            credentials=auth,
-            secure=secure,
-        )
-        mail_handler.setLevel(logging.ERROR)
-
-        app.logger.addHandler(mail_handler)
-
-    if not os.path.exists("logs"):
-        os.mkdir("logs")
-
-    file_handler = logging.handlers.RotatingFileHandler(
-        "logs/microblog.log", maxBytes=102400, backupCount=3
-    )
-    file_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
-        )
-    )
-    file_handler.setLevel(logging.INFO)
-    app.logger.addHandler(file_handler)
-
-    app.logger.setLevel(logging.INFO)
-    app.logger.info("Microblog startup")
+from app import models  # noqa:

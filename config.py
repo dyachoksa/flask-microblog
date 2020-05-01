@@ -1,7 +1,11 @@
 import os
 
+from dotenv import load_dotenv
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 default_db_url = "sqlite:///" + os.path.join(basedir, "app.db")
+
+load_dotenv(os.path.join(basedir, ".env"))
 
 
 class Config:
