@@ -15,11 +15,19 @@
                 <p>{{ user.followers.count() }} followers, {{ user.followed.count() }} following.</p>
 
                 {% if user == current_user %}
-                    <p><a class="btn btn-default" href="{{ url_for('main.edit_profile') }}">Edit your profile</a></p>
+                    <p><a class="btn btn-primary" href="{{ url_for('main.edit_profile') }}">Edit your profile</a></p>
                 {% elif not current_user.is_following(user) %}
                     <p><a class="btn btn-info" href="{{ url_for('main.follow', username=user.username) }}">Follow</a></p>
                 {% else %}
                     <p><a class="btn btn-warning" href="{{ url_for('main.unfollow', username=user.username) }}">Unfollow</a></p>
+                {% endif %}
+
+                {% if not current_user.get_task_in_progress('export_posts') %}
+                    <p>
+                        <a class="btn btn-info" href="{{ url_for('main.export_posts') }}">
+                            {{ _('Export your posts') }}
+                        </a>
+                    </p>
                 {% endif %}
 
                 {% if user != current_user %}
